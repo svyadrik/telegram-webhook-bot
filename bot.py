@@ -1,4 +1,9 @@
 import os
+
+# Вставляем credentials.json из переменной окружения
+if "GOOGLE_CREDS" in os.environ:
+    with open("credentials.json", "w") as f:
+        f.write(os.environ["GOOGLE_CREDS"])
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
