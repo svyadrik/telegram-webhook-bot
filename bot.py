@@ -1,40 +1,46 @@
 import os
-
-# Вставляем credentials.json из переменной окружения
-if "GOOGLE_CREDS" in os.environ:
-    with open("credentials.json", "w") as f:
-        f.write(os.environ["GOOGLE_CREDS"])
 import logging
+from flask import Flask, request
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
-    ContextTypes,
-    CallbackQueryHandler,
     CommandHandler,
+    CallbackQueryHandler,
     MessageHandler,
-    filters
+    ChannelPostHandler,
+    ContextTypes,
+    filters,
 )
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, request
 
+# Создаём credentials.json из переменной окружения
+if "GOOGLE_CREDS" in os.environ:
+    with open("credentials.json", "w") as f:
+        f.write(os.environ["GOOGLE_CREDS"])
+
+# Инициализация
 TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_PATH = f"/webhook/{TOKEN}"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") + WEBHOOK_PATH
 
-# Google Sheets
+# Подключение к Google Таблице
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 CREDS = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
 GSHEET = gspread.authorize(CREDS)
 SHEET = GSHEET.open("Заказы Бутер").worksheet("Лист1")
 
-user_state = {}
+# Telegram и Flask
 app = Flask(__name__)
+application = ApplicationBuilder().token(TOKEN).build()
 logging.basicConfig(level=logging.INFO)
 
-application = ApplicationBuilder().token(TOKEN).build()
+# Состояния пользователей
+user_state = {}
 
-# Обработчик постов
+# === Обработчики ===
+
+# Обработка новых постов в канале
 async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post and update.channel_post.text:
         keyboard = [[InlineKeyboardButton("🛒 Замовити", callback_data="order")]]
@@ -46,9 +52,9 @@ async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 reply_markup=reply_markup
             )
         except Exception as e:
-            logging.error(f"Не вдалося додати кнопку: {e}")
+            logging.error(f"❌ Не вдалося додати кнопку: {e}")
 
-# Кнопка заказа
+# Обработка нажатия кнопки «Замовити»
 async def order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -56,7 +62,7 @@ async def order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_state[user_id] = {"product": query.message.text}
     await query.message.reply_text("Введіть, будь ласка, кількість товару:")
 
-# Ввод количества
+# Обработка ответа с количеством
 async def handle_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id in user_state:
@@ -66,11 +72,11 @@ async def handle_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Дякуємо! Ваше замовлення прийнято.")
         del user_state[user_id]
 
-# Команда /start
+# Стартовая команда
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Бот працює через Webhook!")
 
-# Flask Webhook
+# Обработка webhook-запросов от Telegram
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook_handler():
     data = request.get_json(force=True)
@@ -82,11 +88,13 @@ def webhook_handler():
 async def setup_webhook():
     await application.bot.set_webhook(url=WEBHOOK_URL)
 
-application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, channel_post_handler))
+# Регистрация обработчиков
+application.add_handler(ChannelPostHandler(channel_post_handler))  # Важно!
 application.add_handler(CallbackQueryHandler(order_handler, pattern="^order$"))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_quantity))
 application.add_handler(CommandHandler("start", start))
 
+# Запуск
 if __name__ == "__main__":
     import asyncio
     asyncio.run(setup_webhook())
