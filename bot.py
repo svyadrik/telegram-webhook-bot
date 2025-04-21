@@ -7,7 +7,6 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    ChannelPostHandler,
     ContextTypes,
     filters,
 )
@@ -55,7 +54,6 @@ async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             logging.error(f"❌ Не вдалося додати кнопку: {e}")
 
-
 # Обработка нажатия кнопки «Замовити»
 async def order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -91,7 +89,7 @@ async def setup_webhook():
     await application.bot.set_webhook(url=WEBHOOK_URL)
 
 # Регистрация обработчиков
-application.add_handler(ChannelPostHandler(channel_post_handler))  # Важно!
+application.add_handler(MessageHandler(filters.ALL, channel_post_handler))  # вместо ChannelPostHandler
 application.add_handler(CallbackQueryHandler(order_handler, pattern="^order$"))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_quantity))
 application.add_handler(CommandHandler("start", start))
