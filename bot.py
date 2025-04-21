@@ -42,7 +42,7 @@ user_state = {}
 
 # Обработка новых постов в канале
 async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post and update.channel_post.text:
+    if update.channel_post and (update.channel_post.caption or update.channel_post.text):
         keyboard = [[InlineKeyboardButton("🛒 Замовити", callback_data="order")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         try:
@@ -51,8 +51,10 @@ async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 message_id=update.channel_post.message_id,
                 reply_markup=reply_markup
             )
+            logging.info("✅ Кнопка успешно добавлена к посту.")
         except Exception as e:
             logging.error(f"❌ Не вдалося додати кнопку: {e}")
+
 
 # Обработка нажатия кнопки «Замовити»
 async def order_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
