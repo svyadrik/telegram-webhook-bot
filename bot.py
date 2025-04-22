@@ -1,32 +1,17 @@
-import subprocess
-import sys
+
 import os
-import json  # <- Добавлено для исправления ошибки
-
-# 💣 Сброс библиотеки
-subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "python-telegram-bot"])
-subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "python-telegram-bot==21.1.1"])
-
-# 🔍 Проверка
-import pkg_resources
-print("🔥 PTB version:", pkg_resources.get_distribution("python-telegram-bot").version)
-
-# 🔁 Импортируем telegram.ext динамически после установки
+import json
 import logging
 from flask import Flask, request
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
+    MessageHandler, ContextTypes, filters
+)
+from telegram.ext.filters import UpdateType
 
-telegram_ext = __import__('telegram.ext', fromlist=[
-    'ApplicationBuilder', 'CommandHandler', 'CallbackQueryHandler',
-    'MessageHandler', 'ChannelPostHandler', 'ContextTypes', 'filters'
-])
-ApplicationBuilder = telegram_ext.ApplicationBuilder
-CommandHandler = telegram_ext.CommandHandler
-CallbackQueryHandler = telegram_ext.CallbackQueryHandler
-MessageHandler = telegram_ext.MessageHandler
-ChannelPostHandler = telegram_ext.ChannelPostHandler
-ContextTypes = telegram_ext.ContextTypes
-filters = telegram_ext.filters
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # === ИНИЦИАЛИЗАЦИЯ ===
 logging.basicConfig(level=logging.INFO)
@@ -36,9 +21,6 @@ WEBHOOK_PATH = f"/webhook/{TOKEN}"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") + WEBHOOK_PATH
 
 # === Google Sheets ===
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-
 if "GOOGLE_CREDS" in os.environ:
     with open("credentials.json", "w") as f:
         f.write(os.environ["GOOGLE_CREDS"])
@@ -54,7 +36,7 @@ user_state = {}
 # === ОБРАБОТЧИКИ ===
 async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post and (update.channel_post.caption or update.channel_post.text):
-        keyboard = [[InlineKeyboardButton("🍚 Замовити", callback_data="order")]]
+        keyboard = [[InlineKeyboardButton("🛒 Замовити", callback_data="order")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         try:
             await context.bot.edit_message_reply_markup(
@@ -96,7 +78,7 @@ def webhook_handler():
 async def setup_webhook():
     await application.bot.set_webhook(url=WEBHOOK_URL)
 
-application.add_handler(ChannelPostHandler(channel_post_handler))
+application.add_handler(MessageHandler(UpdateType.CHANNEL_POST, channel_post_handler))
 application.add_handler(CallbackQueryHandler(order_handler, pattern="^order$"))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_quantity))
 application.add_handler(CommandHandler("start", start))
