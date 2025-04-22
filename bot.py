@@ -5,6 +5,10 @@ import os
 # 🔧 Установка python-telegram-bot нужной версии
 subprocess.run([sys.executable, "-m", "pip", "install", "python-telegram-bot==21.1.1"])
 
+import pkg_resources
+print("🔥 PTB version:", pkg_resources.get_distribution("python-telegram-bot").version)
+
+
 # 🔁 Импортируем telegram.ext динамически после установки
 import logging
 from flask import Flask, request
