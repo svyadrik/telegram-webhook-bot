@@ -2,11 +2,14 @@ import subprocess
 import sys
 import os
 
-# 🔧 Установка python-telegram-bot нужной версии
-subprocess.run([sys.executable, "-m", "pip", "install", "python-telegram-bot==21.1.1"])
+# 💣 Сброс библиотеки
+subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "python-telegram-bot"])
+subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "python-telegram-bot==21.1.1"])
 
+# 🔍 Проверка
 import pkg_resources
 print("🔥 PTB version:", pkg_resources.get_distribution("python-telegram-bot").version)
+
 
 
 # 🔁 Импортируем telegram.ext динамически после установки
